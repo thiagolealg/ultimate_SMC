@@ -1,4 +1,4 @@
-import sys, json
+import sys, json, math
 sys.path.insert(0, '.')
 import pandas as pd
 from smc_engine_v3 import SMCEngineV3, SignalDirection
@@ -145,6 +145,18 @@ data = {
         'entry_delay_candles': 1,
     }
 }
+
+def clean_nans(obj):
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    elif isinstance(obj, dict):
+        return {k: clean_nans(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_nans(v) for v in obj]
+    return obj
+
+data = clean_nans(data)
+data['candles'] = [c for c in data['candles'] if c.get('open') is not None]
 
 with open('/home/ubuntu/smc-dashboard/client/src/data/backtest-data.json', 'w') as f:
     json.dump(data, f, indent=2, default=str)
