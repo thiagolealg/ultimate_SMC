@@ -1,0 +1,32 @@
+flowchart LR
+    OB["Order Block\nDetectado"] --> CALC["CALCULAR ÍNDICE\nDE CONFIANÇA\n(0-100 pontos)"]
+    
+    CALC --> V["Volume Score\n0-25 pts\n(Volume vs MA 20)"]
+    CALC --> F["FVG Score\n0-20 pts\n(Fair Value Gap)"]
+    CALC --> T["Trend Score\n0-15 pts\n(EMA 20/50)"]
+    CALC --> S["Size Score\n0-15 pts\n(OB vs ATR)"]
+    CALC --> SW["Sweep Score\n0-15 pts\n(Liquidity Sweep)"]
+    CALC --> W["Wyckoff Score\n0-10 pts\n(Spring/Upthrust)"]
+    
+    V & F & T & S & SW & W --> TOTAL["TOTAL\n(0-100)"]
+    
+    TOTAL --> L1{"0-35\nBaixa"}
+    TOTAL --> L2{"36-50\nMédia"}
+    TOTAL --> L3{"51-65\nAlta"}
+    TOTAL --> L4{"66-80\nMuito Alta"}
+    TOTAL --> L5{"81-100\nExcepcional"}
+    
+    L1 --> A1["1.0x\nContratos"]
+    L2 --> A2["1.5x\nContratos"]
+    L3 --> A3["2.0x\nContratos"]
+    L4 --> A4["2.5x\nContratos"]
+    L5 --> A5["3.0x\nContratos"]
+    
+    style OB fill:#4A90D9,color:#fff
+    style CALC fill:#FF9800,color:#fff
+    style TOTAL fill:#7ED321,color:#fff
+    style A1 fill:#9B9B9B,color:#fff
+    style A2 fill:#F5A623,color:#fff
+    style A3 fill:#7ED321,color:#fff
+    style A4 fill:#4A90D9,color:#fff
+    style A5 fill:#D0021B,color:#fff

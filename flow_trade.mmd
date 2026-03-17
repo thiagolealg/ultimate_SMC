@@ -1,0 +1,58 @@
+sequenceDiagram
+    participant MT5 as MetaTrader 5
+    participant API as FastAPI
+    participant ENG as SMC Engine V3
+    participant ORD as Gerenciador Ordens
+    participant TEL as Telegram
+
+    Note over MT5,TEL: FASE 1: DETECÇÃO DO ORDER BLOCK
+    MT5->>API: POST /candle (OHLCV)
+    API->>ENG: add_candle()
+    ENG->>ENG: Detectar Swing High confirmado
+    ENG->>ENG: Close > Last Swing High = BOS
+    ENG->>ENG: Order Block Bullish detectado!
+    ENG->>ENG: Calcular Midline = (Top+Bottom)/2
+
+    Note over MT5,TEL: FASE 2: CRIAR ORDEM PENDENTE
+    ENG->>ENG: Verificar: OB não mitigado? ✅
+    ENG->>ENG: Calcular Confiança (0-100)
+    ENG->>ENG: Entry=Midline, SL=Bottom-10%, TP=Entry+3×Risk
+    ENG->>ORD: Criar BUY LIMIT @ Midline
+    ORD->>TEL: 🔔 Nova ordem pendente!
+    TEL-->>TEL: "BUY LIMIT WIN @ 128.500"
+
+    Note over MT5,TEL: FASE 3: AGUARDAR TOQUE (máx 150 candles)
+    loop A cada candle
+        MT5->>API: POST /candle
+        API->>ENG: add_candle()
+        ENG->>ORD: Verificar ordens pendentes
+        alt Preço NÃO tocou a linha
+            ORD->>ORD: Aguardando...
+        else Preço TOCOU a linha (Low ≤ Midline)
+            ORD->>ORD: Verificar: candle mitiga OB?
+            alt Candle NÃO mitiga OB
+                ORD->>ORD: ✅ ORDEM PREENCHIDA!
+                ORD->>TEL: 🟢 Trade aberto!
+            else Candle mitiga OB
+                ORD->>ORD: ❌ Cancelar (proteção)
+            end
+        else Expirou (>150 candles)
+            ORD->>ORD: ⏰ Ordem expirada
+        end
+    end
+
+    Note over MT5,TEL: FASE 4: GERENCIAR TRADE
+    loop A cada candle
+        MT5->>API: POST /candle
+        API->>ENG: add_candle()
+        ENG->>ORD: Verificar TP/SL
+        alt SL atingido (Low ≤ SL)
+            ORD->>ORD: 🔴 LOSS (-1R)
+            ORD->>TEL: 🔴 Trade fechado: LOSS
+        else TP atingido (High ≥ TP)
+            ORD->>ORD: 🟢 WIN (+3R)
+            ORD->>TEL: 🟢 Trade fechado: WIN +3R
+        else Nenhum
+            ORD->>ORD: ⏳ Aguardando...
+        end
+    end

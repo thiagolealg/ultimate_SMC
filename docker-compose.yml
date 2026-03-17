@@ -1,0 +1,57 @@
+# SMC Realtime API - Docker Compose
+# ==================================
+
+version: '3.8'
+
+services:
+  smc-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smc-realtime-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Configurações do servidor
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8000
+      
+      # Configurações do engine SMC
+      - SWING_LENGTH=5
+      - RISK_REWARD_RATIO=3.0
+      - MIN_VOLUME_RATIO=1.5
+      - MIN_OB_SIZE_ATR=0.5
+      - MAX_PENDING_ORDERS=10
+      - MAX_CANDLES_HISTORY=5000
+      - USE_NOT_MITIGATED_FILTER=true
+      
+      # Símbolos suportados
+      - SUPPORTED_SYMBOLS=WINM24,WDOM24,PETR4,VALE3
+      
+      # Alertas (configure suas credenciais)
+      - ALERT_TELEGRAM_BOT_TOKEN=${ALERT_TELEGRAM_BOT_TOKEN:-}
+      - ALERT_TELEGRAM_CHAT_ID=${ALERT_TELEGRAM_CHAT_ID:-}
+      - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL:-}
+      
+      # Logging
+      - LOG_LEVEL=INFO
+    
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    networks:
+      - smc-network
+
+networks:
+  smc-network:
+    driver: bridge

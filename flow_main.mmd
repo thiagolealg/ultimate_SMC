@@ -1,0 +1,55 @@
+flowchart TD
+    A["📊 NOVO CANDLE RECEBIDO\n(Open, High, Low, Close, Volume)"] --> B["1. Armazenar Dados\n(Arrays: opens, highs, lows, closes, volumes)"]
+    B --> C["2. Atualizar Indicadores\n(EMA 20/50, ATR 14, Volume MA 20)"]
+    C --> D["3. Detectar Swing Highs/Lows\n(Confirmação: N candles após o swing)"]
+    D --> E["4. Detectar Padrões SMC"]
+    
+    E --> E1["FVG\n(Fair Value Gap)"]
+    E --> E2["BOS\n(Break of Structure)"]
+    E --> E3["CHoCH\n(Change of Character)"]
+    E --> E4["Liquidity Sweep"]
+    E --> E5["Wyckoff\n(Spring/Upthrust)"]
+    
+    E1 & E2 & E3 & E4 & E5 --> F["5. Detectar Order Blocks\n(Bullish: Close > Last Swing High)\n(Bearish: Close < Last Swing Low)"]
+    
+    F --> G["6. Criar Ordens Pendentes\n(LIMIT na linha do meio do OB)"]
+    
+    G --> G1{"Filtro: OB\nnão mitigado?"}
+    G1 -- "Sim ✅" --> G2{"Filtro: Primeiro\ntoque?"}
+    G1 -- "Não ❌" --> SKIP["Ignorar OB"]
+    G2 -- "Sim ✅" --> G3["Calcular:\n• Entry = Midline\n• SL = OB Bottom - 10%\n• TP = Entry + 3×Risk"]
+    G2 -- "Não ❌" --> SKIP
+    
+    G3 --> G4["Calcular Confiança\n(Volume + FVG + Trend + Size + Sweep + Wyckoff)"]
+    G4 --> G5["📝 ORDEM LIMIT CRIADA\n(Aguardando toque na linha)"]
+    
+    G5 --> H["7. Processar Ordens Pendentes"]
+    
+    H --> H1{"Preço tocou\na linha?"}
+    H1 -- "Sim ✅" --> H2{"Candle também\nmitiga o OB?"}
+    H2 -- "Não ✅" --> H3["✅ ORDEM PREENCHIDA\n(Trade aberto)"]
+    H2 -- "Sim ❌" --> H4["❌ Cancelar\n(Proteção)"]
+    H1 -- "Não" --> H5{"Expirou?\n(>150 candles)"}
+    H5 -- "Sim" --> H6["⏰ Ordem Expirada"]
+    H5 -- "Não" --> H7{"OB foi\nmitigado?"}
+    H7 -- "Sim" --> H8["❌ Ordem Cancelada"]
+    H7 -- "Não" --> H9["⏳ Aguardando..."]
+    
+    H3 --> I["8. Gerenciar Trade Aberto"]
+    I --> I1{"SL atingido?"}
+    I1 -- "Sim" --> I2["🔴 LOSS (-1R)"]
+    I1 -- "Não" --> I3{"TP atingido?"}
+    I3 -- "Sim" --> I4["🟢 WIN (+3R)"]
+    I3 -- "Não" --> I5["⏳ Aguardando..."]
+    
+    I2 & I4 --> J["9. Trade Fechado\n(Registrar resultado)"]
+    
+    style A fill:#4A90D9,color:#fff
+    style G5 fill:#F5A623,color:#fff
+    style H3 fill:#7ED321,color:#fff
+    style I2 fill:#D0021B,color:#fff
+    style I4 fill:#7ED321,color:#fff
+    style SKIP fill:#9B9B9B,color:#fff
+    style H4 fill:#D0021B,color:#fff
+    style H6 fill:#9B9B9B,color:#fff
+    style H8 fill:#D0021B,color:#fff

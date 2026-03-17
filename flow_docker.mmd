@@ -1,0 +1,48 @@
+flowchart LR
+    subgraph MT5["MetaTrader 5"]
+        EA["EA SMC_DataSender.mq5\n(Envia candles a cada 1 min)"]
+    end
+
+    subgraph DOCKER["Docker Container"]
+        subgraph API["FastAPI Server :8000"]
+            REST["REST API\nPOST /candle\nPOST /candles/batch\nGET /stats\nGET /orders/pending\nGET /orders/filled\nGET /order_blocks"]
+            WS["WebSocket\nWS /ws\n(Sinais em tempo real)"]
+        end
+        
+        subgraph ENGINE["SMC Engine V3"]
+            CACHE["Cache Incremental\n• EMA 20/50\n• ATR 14\n• Volume MA 20"]
+            SWING["Swing Detection\n(Sem look-ahead)"]
+            OB["Order Block Detection\n(Confirmação por BOS)"]
+            PATTERNS["Padrões SMC\nFVG | BOS | CHoCH\nSweep | Wyckoff"]
+            ORDERS["Gerenciador de Ordens\n• Pendentes (Limit)\n• Preenchidas\n• Fechadas"]
+            CONF["Índice de Confiança\n(0-100 pontos)"]
+        end
+        
+        subgraph ALERTS["Sistema de Alertas"]
+            TELE["Telegram Bot"]
+            HOOK["Webhook"]
+        end
+    end
+
+    subgraph CLIENT["Clientes"]
+        DASH["Dashboard Web"]
+        BOT["Bot de Trading"]
+        PHONE["Celular\n(Telegram)"]
+    end
+
+    EA -- "HTTP POST\n(OHLCV)" --> REST
+    REST --> ENGINE
+    ENGINE -- "Sinais" --> WS
+    ENGINE -- "Alertas" --> ALERTS
+    WS --> DASH
+    WS --> BOT
+    TELE --> PHONE
+    REST --> DASH
+    REST --> BOT
+
+    style MT5 fill:#1E88E5,color:#fff
+    style DOCKER fill:#f0f0f0,color:#333
+    style API fill:#4CAF50,color:#fff
+    style ENGINE fill:#FF9800,color:#fff
+    style ALERTS fill:#9C27B0,color:#fff
+    style CLIENT fill:#607D8B,color:#fff
