@@ -4,6 +4,14 @@ SMC Engine - Motor de Estratégias Smart Money Concepts para Tempo Real
 
 Engine otimizado para processar dados em tempo real minuto a minuto.
 Inclui todas as estratégias SMC com validação de toque na linha.
+
+Correções aplicadas (v2):
+  [FIX-1] GC de order_blocks: remove OBs mitigados sem referências
+  [FIX-2] Sinais repetidos: _has_pending_order_for_ob agora verifica filled_orders também
+  [FIX-3] swing_highs/lows limitados (max 200 entradas)
+  [FIX-4] Divergência V3 vs Realtime: OB bounds agora usa open/close (corpo) em vez de high/low (sombra)
+  [FIX-5] Filtro de OBs duplicados/sobrepostos melhorado (>50% overlap)
+  [FIX-6] Expiração de ordens pendentes (max_pending_candles)
 """
 
 import numpy as np
@@ -51,8 +59,13 @@ class OrderBlock:
     volume: float
     confirmation_index: int
     is_mitigated: bool = False
+    mitigated_index: int = -1  # [FIX-1] Índice onde foi mitigado
     patterns: List[PatternType] = field(default_factory=list)
     confidence: float = 0.0
+    
+    @property
+    def ob_size(self) -> float:
+        return self.top - self.bottom
     
     def contains_price(self, price: float) -> bool:
         return self.bottom <= price <= self.top
@@ -103,8 +116,9 @@ class SMCEngine:
     Otimizado para:
     - Receber dados minuto a minuto
     - Processar incrementalmente (sem recalcular tudo)
-    - Gerenciar ordens pendentes
+    - Gerenciar ordens pendentes com expiração
     - Validar toque na linha do OB
+    - Garbage collection de OBs mitigados
     """
     
     def __init__(
@@ -116,7 +130,8 @@ class SMCEngine:
         min_ob_size_atr: float = 0.5,
         max_pending_orders: int = 10,
         max_candles_history: int = 5000,
-        use_not_mitigated_filter: bool = True
+        use_not_mitigated_filter: bool = True,
+        max_pending_candles: int = 100,  # [FIX-6] Expiração de ordens
     ):
         self.symbol = symbol
         self.swing_length = swing_length
@@ -126,14 +141,17 @@ class SMCEngine:
         self.max_pending_orders = max_pending_orders
         self.max_candles_history = max_candles_history
         self.use_not_mitigated_filter = use_not_mitigated_filter
+        self.max_pending_candles = max_pending_candles  # [FIX-6]
         
         # Dados históricos (buffer circular)
         self.candles: deque = deque(maxlen=max_candles_history)
         self.candle_count = 0
         
         # Cache de indicadores
+        # [FIX-3] swing_highs/lows agora são listas com limite
         self.swing_highs: Dict[int, float] = {}
         self.swing_lows: Dict[int, float] = {}
+        self._max_swing_history: int = 200
         self.order_blocks: List[OrderBlock] = []
         self.fvgs: List[Dict] = []
         
@@ -150,6 +168,9 @@ class SMCEngine:
         
         # Contadores
         self.order_id_counter = 0
+        
+        # [FIX-1] GC config
+        self._gc_interval: int = 10
         
         logger.info(f"SMCEngine inicializado para {symbol}")
     
@@ -180,17 +201,29 @@ class SMCEngine:
         # Atualizar indicadores
         self._update_indicators()
         
+        # [FIX-6] Expirar ordens pendentes antigas
+        self._expire_pending_orders(candle)
+        
         # Verificar ordens pendentes
         self._check_pending_orders(candle)
         
         # Verificar ordens preenchidas (TP/SL)
         self._check_filled_orders(candle)
         
+        # [FIX-1] Mitigação de OBs (antes de detectar novos)
+        self._check_ob_mitigation(candle)
+        
         # Detectar novos padrões
         self._detect_patterns()
         
         # Gerar novos sinais
         signals = self._generate_signals(candle)
+        
+        # [FIX-1] Garbage collection de OBs mitigados
+        self._garbage_collect_obs(candle['index'])
+        
+        # [FIX-3] Limitar swing history
+        self._trim_swing_history()
         
         return signals
     
@@ -283,7 +316,10 @@ class SMCEngine:
         self._detect_fvg(candles_list)
     
     def _check_bullish_ob(self, swing_low_idx: int, candles: List[Dict]):
-        """Verifica e cria OB Bullish após swing low confirmado"""
+        """
+        Verifica e cria OB Bullish após swing low confirmado.
+        [FIX-4] Usa open/close (corpo) para definir OB bounds, alinhado com V3.
+        """
         if swing_low_idx < 2:
             return
         
@@ -291,9 +327,13 @@ class SMCEngine:
         for i in range(swing_low_idx - 1, max(0, swing_low_idx - 5), -1):
             candle = candles[i]
             if candle['close'] < candle['open']:  # Candle de baixa
+                # [FIX-4] Usar corpo (open/close) em vez de high/low (sombra)
+                ob_top = max(candle['open'], candle['close'])
+                ob_bottom = min(candle['open'], candle['close'])
+                ob_size = ob_top - ob_bottom
+                
                 # Verificar filtros
                 if self.atr > 0:
-                    ob_size = candle['high'] - candle['low']
                     if ob_size < self.min_ob_size_atr * self.atr:
                         continue
                 
@@ -301,13 +341,13 @@ class SMCEngine:
                     if candle['volume'] < self.min_volume_ratio * self.volume_ma:
                         continue
                 
-                # Criar OB
+                # Criar OB com bounds alinhados à V3
                 ob = OrderBlock(
                     index=i,
                     direction=SignalDirection.BULLISH,
-                    top=candle['high'],
-                    bottom=candle['low'],
-                    midline=(candle['high'] + candle['low']) / 2,
+                    top=ob_top,
+                    bottom=ob_bottom,
+                    midline=(ob_top + ob_bottom) / 2,
                     volume=candle['volume'],
                     confirmation_index=swing_low_idx + self.swing_length,
                     patterns=[PatternType.ORDER_BLOCK]
@@ -316,15 +356,18 @@ class SMCEngine:
                 # Calcular confiança
                 ob.confidence = self._calculate_confidence(ob, candles)
                 
-                # Verificar se já existe OB similar
-                if not self._ob_exists(ob):
+                # [FIX-5] Verificar se já existe OB similar (melhorado)
+                if not self._ob_overlaps_existing(ob):
                     self.order_blocks.append(ob)
-                    logger.info(f"OB Bullish detectado: {ob.midline:.2f}")
+                    logger.info(f"OB Bullish detectado: top={ob.top:.2f} bottom={ob.bottom:.2f} mid={ob.midline:.2f}")
                 
                 break
     
     def _check_bearish_ob(self, swing_high_idx: int, candles: List[Dict]):
-        """Verifica e cria OB Bearish após swing high confirmado"""
+        """
+        Verifica e cria OB Bearish após swing high confirmado.
+        [FIX-4] Usa open/close (corpo) para definir OB bounds, alinhado com V3.
+        """
         if swing_high_idx < 2:
             return
         
@@ -332,9 +375,13 @@ class SMCEngine:
         for i in range(swing_high_idx - 1, max(0, swing_high_idx - 5), -1):
             candle = candles[i]
             if candle['close'] > candle['open']:  # Candle de alta
+                # [FIX-4] Usar corpo (open/close) em vez de high/low (sombra)
+                ob_top = max(candle['open'], candle['close'])
+                ob_bottom = min(candle['open'], candle['close'])
+                ob_size = ob_top - ob_bottom
+                
                 # Verificar filtros
                 if self.atr > 0:
-                    ob_size = candle['high'] - candle['low']
                     if ob_size < self.min_ob_size_atr * self.atr:
                         continue
                 
@@ -342,13 +389,13 @@ class SMCEngine:
                     if candle['volume'] < self.min_volume_ratio * self.volume_ma:
                         continue
                 
-                # Criar OB
+                # Criar OB com bounds alinhados à V3
                 ob = OrderBlock(
                     index=i,
                     direction=SignalDirection.BEARISH,
-                    top=candle['high'],
-                    bottom=candle['low'],
-                    midline=(candle['high'] + candle['low']) / 2,
+                    top=ob_top,
+                    bottom=ob_bottom,
+                    midline=(ob_top + ob_bottom) / 2,
                     volume=candle['volume'],
                     confirmation_index=swing_high_idx + self.swing_length,
                     patterns=[PatternType.ORDER_BLOCK]
@@ -356,9 +403,10 @@ class SMCEngine:
                 
                 ob.confidence = self._calculate_confidence(ob, candles)
                 
-                if not self._ob_exists(ob):
+                # [FIX-5] Verificar se já existe OB similar (melhorado)
+                if not self._ob_overlaps_existing(ob):
                     self.order_blocks.append(ob)
-                    logger.info(f"OB Bearish detectado: {ob.midline:.2f}")
+                    logger.info(f"OB Bearish detectado: top={ob.top:.2f} bottom={ob.bottom:.2f} mid={ob.midline:.2f}")
                 
                 break
     
@@ -390,6 +438,10 @@ class SMCEngine:
                 'index': len(candles) - 2
             }
             self.fvgs.append(fvg)
+        
+        # Limitar FVGs na memória
+        if len(self.fvgs) > 50:
+            self.fvgs = self.fvgs[-50:]
     
     def _calculate_confidence(self, ob: OrderBlock, candles: List[Dict]) -> float:
         """Calcula índice de confiança do OB"""
@@ -426,20 +478,101 @@ class SMCEngine:
                     break
         
         # BOS/CHoCH (0-15)
-        # Simplificado: verificar se houve quebra de estrutura recente
         if len(self.swing_highs) > 1 and len(self.swing_lows) > 1:
             confidence += 10
             ob.patterns.append(PatternType.BOS)
         
         return min(100, confidence)
     
-    def _ob_exists(self, new_ob: OrderBlock) -> bool:
-        """Verifica se OB similar já existe"""
-        for ob in self.order_blocks[-50:]:
-            if (ob.direction == new_ob.direction and 
-                abs(ob.midline - new_ob.midline) < self.atr * 0.1):
+    def _ob_overlaps_existing(self, new_ob: OrderBlock) -> bool:
+        """
+        [FIX-5] Verifica se um novo OB sobrepõe um OB existente ativo.
+        Melhorado: usa cálculo de sobreposição percentual em vez de apenas midline.
+        """
+        for ob in self.order_blocks:
+            if ob.is_mitigated:
+                continue
+            if ob.direction != new_ob.direction:
+                continue
+            # Sobreposição: se as zonas se cruzam
+            overlap = min(ob.top, new_ob.top) - max(ob.bottom, new_ob.bottom)
+            if overlap > 0:
+                min_size = min(ob.ob_size, new_ob.ob_size)
+                if min_size > 0 and overlap / min_size > 0.5:  # >50% sobreposição
+                    return True
+            # Fallback: midline muito próximo (compatibilidade)
+            if self.atr > 0 and abs(ob.midline - new_ob.midline) < self.atr * 0.1:
                 return True
         return False
+    
+    def _check_ob_mitigation(self, candle: Dict):
+        """
+        [FIX-1] Verifica mitigação de OBs ativos.
+        Alinhado com V3: Bullish mitigado quando low <= ob_bottom,
+        Bearish mitigado quando high >= ob_top.
+        """
+        h = candle['high']
+        l = candle['low']
+        idx = candle['index']
+        
+        for ob in self.order_blocks:
+            if ob.is_mitigated:
+                continue
+            # Só verificar mitigação APÓS confirmação
+            if idx <= ob.confirmation_index:
+                continue
+            
+            if ob.direction == SignalDirection.BULLISH:
+                if l <= ob.bottom:
+                    ob.is_mitigated = True
+                    ob.mitigated_index = idx
+            else:
+                if h >= ob.top:
+                    ob.is_mitigated = True
+                    ob.mitigated_index = idx
+    
+    def _garbage_collect_obs(self, idx: int):
+        """
+        [FIX-1] Garbage Collection de Order Blocks.
+        Remove OBs mitigados que não têm ordens pendentes ou filled referenciando-os.
+        Roda a cada _gc_interval candles.
+        """
+        if idx % self._gc_interval != 0:
+            return
+        
+        # Coletar ob indexes que ainda estão em uso
+        referenced_ob_indexes = set()
+        for order in self.pending_orders:
+            referenced_ob_indexes.add(order.ob.index)
+        for order in self.filled_orders:
+            referenced_ob_indexes.add(order.ob.index)
+        
+        # Manter apenas OBs ativos OU referenciados
+        before = len(self.order_blocks)
+        self.order_blocks = [
+            ob for ob in self.order_blocks
+            if not ob.is_mitigated or ob.index in referenced_ob_indexes
+        ]
+        removed = before - len(self.order_blocks)
+        if removed > 0:
+            logger.info(f"GC: removidos {removed} OBs mitigados (restam {len(self.order_blocks)} ativos)")
+    
+    def _trim_swing_history(self):
+        """
+        [FIX-3] Limita o tamanho dos dicts de swings para não crescer infinitamente.
+        Mantém apenas os últimos _max_swing_history swings.
+        """
+        if len(self.swing_highs) > self._max_swing_history:
+            sorted_keys = sorted(self.swing_highs.keys())
+            excess = len(sorted_keys) - self._max_swing_history
+            for key in sorted_keys[:excess]:
+                del self.swing_highs[key]
+        
+        if len(self.swing_lows) > self._max_swing_history:
+            sorted_keys = sorted(self.swing_lows.keys())
+            excess = len(sorted_keys) - self._max_swing_history
+            for key in sorted_keys[:excess]:
+                del self.swing_lows[key]
     
     def _generate_signals(self, current_candle: Dict) -> List[TradeSignal]:
         """Gera sinais de trade para OBs não mitigados"""
@@ -450,15 +583,15 @@ class SMCEngine:
             if self.use_not_mitigated_filter and ob.is_mitigated:
                 continue
             
-            # Verificar se já existe ordem pendente para este OB
-            if self._has_pending_order_for_ob(ob):
+            # [FIX-2] Verificar se já existe ordem pendente OU filled para este OB
+            if self._has_order_for_ob(ob):
                 continue
             
             # Verificar se o OB já foi confirmado
             if current_candle['index'] <= ob.confirmation_index:
                 continue
             
-            # Criar ordem pendente
+            # Criar ordem pendente (alinhado com V3: entry no midline)
             if ob.direction == SignalDirection.BULLISH:
                 entry_price = ob.midline
                 sl_distance = ob.top - ob.bottom
@@ -516,12 +649,51 @@ class SMCEngine:
         
         return signals
     
-    def _has_pending_order_for_ob(self, ob: OrderBlock) -> bool:
-        """Verifica se já existe ordem pendente para este OB"""
+    def _has_order_for_ob(self, ob: OrderBlock) -> bool:
+        """
+        [FIX-2] Verifica se já existe ordem pendente OU filled para este OB.
+        Antes verificava apenas pending_orders, causando sinais repetidos.
+        """
         for order in self.pending_orders:
-            if order.ob.index == ob.index:
+            if order.ob.index == ob.index and order.ob.direction == ob.direction:
+                return True
+        for order in self.filled_orders:
+            if order.ob.index == ob.index and order.ob.direction == ob.direction:
+                return True
+        # Verificar também em closed (para não reabrir OB já usado)
+        for order in self.closed_orders:
+            if order.ob.index == ob.index and order.ob.direction == ob.direction:
                 return True
         return False
+    
+    def _expire_pending_orders(self, candle: Dict):
+        """
+        [FIX-6] Expira ordens pendentes que ultrapassaram max_pending_candles.
+        Antes não existia expiração, ordens ficavam pendentes para sempre.
+        """
+        idx = candle['index']
+        remaining = []
+        for order in self.pending_orders:
+            if order.status != OrderStatus.PENDING:
+                remaining.append(order)
+                continue
+            
+            candles_waiting = idx - order.created_at
+            if candles_waiting > self.max_pending_candles:
+                order.status = OrderStatus.CANCELLED
+                logger.info(f"Ordem {order.id} EXPIRADA após {candles_waiting} candles")
+                continue
+            
+            # [FIX-1/6] Cancelar se OB foi mitigado antes do fill
+            if self.use_not_mitigated_filter and order.ob.is_mitigated:
+                if order.ob.mitigated_index < idx:
+                    order.status = OrderStatus.CANCELLED
+                    logger.info(f"Ordem {order.id} CANCELADA: OB mitigado no candle {order.ob.mitigated_index}")
+                    continue
+            
+            remaining.append(order)
+        
+        self.pending_orders = remaining
     
     def _check_pending_orders(self, candle: Dict):
         """Verifica se ordens pendentes foram preenchidas"""
@@ -542,9 +714,25 @@ class SMCEngine:
                     filled = True
             
             if filled:
+                # Verificar se o candle não ultrapassou o OB inteiro (filtro de mitigação no fill)
+                skip_trade = False
+                if order.direction == SignalDirection.BULLISH:
+                    if candle['low'] <= order.ob.bottom:
+                        skip_trade = True
+                else:
+                    if candle['high'] >= order.ob.top:
+                        skip_trade = True
+                
+                if skip_trade:
+                    order.status = OrderStatus.CANCELLED
+                    self.pending_orders.remove(order)
+                    logger.info(f"Ordem {order.id} CANCELADA: candle ultrapassou OB no fill")
+                    continue
+                
                 order.status = OrderStatus.FILLED
                 order.filled_at = candle['index']
                 order.ob.is_mitigated = True
+                order.ob.mitigated_index = candle['index']
                 
                 self.pending_orders.remove(order)
                 self.filled_orders.append(order)
@@ -561,17 +749,17 @@ class SMCEngine:
             hit_sl = False
             
             if order.direction == SignalDirection.BULLISH:
-                # LONG: TP se HIGH >= take_profit, SL se LOW <= stop_loss
-                if candle['high'] >= order.take_profit:
-                    hit_tp = True
-                elif candle['low'] <= order.stop_loss:
+                # LONG: SL primeiro (pior caso), depois TP
+                if candle['low'] <= order.stop_loss:
                     hit_sl = True
+                elif candle['high'] >= order.take_profit:
+                    hit_tp = True
             else:
-                # SHORT: TP se LOW <= take_profit, SL se HIGH >= stop_loss
-                if candle['low'] <= order.take_profit:
-                    hit_tp = True
-                elif candle['high'] >= order.stop_loss:
+                # SHORT: SL primeiro (pior caso), depois TP
+                if candle['high'] >= order.stop_loss:
                     hit_sl = True
+                elif candle['low'] <= order.take_profit:
+                    hit_tp = True
             
             if hit_tp:
                 order.status = OrderStatus.CLOSED_TP
@@ -603,10 +791,16 @@ class SMCEngine:
         
         win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
         
+        # [FIX-1] Contagem separada de OBs ativos vs mitigados
+        active_obs = sum(1 for ob in self.order_blocks if not ob.is_mitigated)
+        mitigated_obs = sum(1 for ob in self.order_blocks if ob.is_mitigated)
+        
         return {
             'symbol': self.symbol,
             'candles_processed': self.candle_count,
             'order_blocks_detected': len(self.order_blocks),
+            'active_obs': active_obs,
+            'mitigated_obs_in_memory': mitigated_obs,
             'pending_orders': len(self.pending_orders),
             'filled_orders': len(self.filled_orders),
             'closed_orders': total_trades,
@@ -616,7 +810,9 @@ class SMCEngine:
             'total_profit_points': total_profit,
             'atr': self.atr,
             'ema_20': self.ema_20,
-            'ema_50': self.ema_50
+            'ema_50': self.ema_50,
+            'swing_highs_count': len(self.swing_highs),
+            'swing_lows_count': len(self.swing_lows),
         }
     
     def get_pending_orders(self) -> List[Dict]:

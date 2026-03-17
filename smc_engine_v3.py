@@ -202,6 +202,8 @@ class SMCEngineV3:
         # Order Blocks
         self.active_obs: List[OrderBlock] = []
         self._ob_counter: int = 0
+        self._gc_interval: int = 10  # Rodar GC a cada N candles
+        self._max_swing_history: int = 200  # Máximo de swings na memória
 
         # Ordens
         self.pending_orders: List[PendingOrder] = []
@@ -396,6 +398,12 @@ class SMCEngineV3:
             self._htf_last_bottom_level = candidate_low
             self._htf_last_swing_low_level = candidate_low
 
+        # [FIX-3] Limitar HTF swing_highs/lows
+        if len(self._htf_swing_highs) > self._max_swing_history:
+            self._htf_swing_highs = self._htf_swing_highs[-self._max_swing_history:]
+        if len(self._htf_swing_lows) > self._max_swing_history:
+            self._htf_swing_lows = self._htf_swing_lows[-self._max_swing_history:]
+
     def _htf_detect_fvg(self, htf_idx: int):
         """Detecta FVG no HTF."""
         if htf_idx < 2:
@@ -495,8 +503,10 @@ class SMCEngineV3:
                     ob_size=ob_size,
                     ob_size_atr=ob_size_atr,
                 )
-                self.active_obs.append(ob)
-                new_obs.append(ob)
+                # [FIX-5] Filtro de OBs duplicados/sobrepostos
+                if not self._ob_overlaps_existing(ob):
+                    self.active_obs.append(ob)
+                    new_obs.append(ob)
 
             self._htf_last_top_idx = -1
 
@@ -532,8 +542,10 @@ class SMCEngineV3:
                     ob_size=ob_size,
                     ob_size_atr=ob_size_atr,
                 )
-                self.active_obs.append(ob)
-                new_obs.append(ob)
+                # [FIX-5] Filtro de OBs duplicados/sobrepostos
+                if not self._ob_overlaps_existing(ob):
+                    self.active_obs.append(ob)
+                    new_obs.append(ob)
 
             self._htf_last_bottom_idx = -1
 
@@ -742,6 +754,7 @@ class SMCEngineV3:
             events['cancelled_orders'] = cancel_events
 
             self._check_ob_mitigation(idx)
+            self._garbage_collect_obs(idx)  # [FIX-1] GC de OBs mitigados
 
             close_events = self._process_filled_orders(idx)
             events['closed_trades'] = close_events
@@ -773,6 +786,7 @@ class SMCEngineV3:
             events['cancelled_orders'] = cancel_events
 
             self._check_ob_mitigation(idx)
+            self._garbage_collect_obs(idx)  # [FIX-1] GC de OBs mitigados
 
             # TP/SL no M1 + protecao pos-fill (fecha se OB mitigado no mesmo HTF bar)
             close_events = self._process_filled_orders_mtf(idx)
@@ -856,6 +870,12 @@ class SMCEngineV3:
             self._last_bottom_idx = candidate_idx
             self._last_bottom_level = candidate_low
             self._last_swing_low_level = candidate_low
+        
+        # [FIX-3] Limitar swing_highs/lows para não crescer infinitamente
+        if len(self.swing_highs) > self._max_swing_history:
+            self.swing_highs = self.swing_highs[-self._max_swing_history:]
+        if len(self.swing_lows) > self._max_swing_history:
+            self.swing_lows = self.swing_lows[-self._max_swing_history:]
     
     def _detect_fvg(self, idx: int):
         """Detecta Fair Value Gap"""
@@ -970,8 +990,10 @@ class SMCEngineV3:
                     ob_size=ob_size,
                     ob_size_atr=ob_size_atr,
                 )
-                self.active_obs.append(ob)
-                new_obs.append(ob)
+                # [FIX-5] Filtro de OBs duplicados/sobrepostos
+                if not self._ob_overlaps_existing(ob):
+                    self.active_obs.append(ob)
+                    new_obs.append(ob)
             
             self._last_top_idx = -1
         
@@ -1005,12 +1027,54 @@ class SMCEngineV3:
                     ob_size=ob_size,
                     ob_size_atr=ob_size_atr,
                 )
-                self.active_obs.append(ob)
-                new_obs.append(ob)
+                # [FIX-5] Filtro de OBs duplicados/sobrepostos
+                if not self._ob_overlaps_existing(ob):
+                    self.active_obs.append(ob)
+                    new_obs.append(ob)
             
             self._last_bottom_idx = -1
         
         return new_obs
+    
+    def _ob_overlaps_existing(self, new_ob: OrderBlock) -> bool:
+        """
+        [FIX-5] Verifica se um novo OB sobrepõe um OB existente ativo.
+        Evita OBs duplicados na mesma zona de preço.
+        """
+        for ob in self.active_obs:
+            if ob.mitigated:
+                continue
+            if ob.direction != new_ob.direction:
+                continue
+            # Sobreposição: se as zonas se cruzam
+            overlap = min(ob.top, new_ob.top) - max(ob.bottom, new_ob.bottom)
+            if overlap > 0:
+                min_size = min(ob.ob_size, new_ob.ob_size)
+                if min_size > 0 and overlap / min_size > 0.5:  # >50% sobreposição
+                    return True
+        return False
+    
+    def _garbage_collect_obs(self, idx: int):
+        """
+        [FIX-1] Garbage Collection de Order Blocks.
+        Remove OBs mitigados que não têm ordens pendentes ou filled referenciando-os.
+        Roda a cada _gc_interval candles para não impactar performance.
+        """
+        if idx % self._gc_interval != 0:
+            return
+        
+        # Coletar ob_ids que ainda estão em uso (pending ou filled)
+        referenced_ob_ids = set()
+        for order in self.pending_orders:
+            referenced_ob_ids.add(order.ob.ob_id)
+        for order in self.filled_orders:
+            referenced_ob_ids.add(order.ob.ob_id)
+        
+        # Manter apenas OBs ativos OU referenciados
+        self.active_obs = [
+            ob for ob in self.active_obs
+            if not ob.mitigated or ob.ob_id in referenced_ob_ids
+        ]
     
     def _check_ob_mitigation(self, idx: int):
         """
