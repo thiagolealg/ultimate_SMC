@@ -12,6 +12,7 @@ __pycache__/
 
 logs/
 data/
+!dashboard/client/src/data/
 smc_trader.log
 
 resultado_2025/
