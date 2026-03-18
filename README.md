@@ -182,19 +182,131 @@ pnpm start
 
 O dashboard estará disponível em `http://localhost:5173` (dev) ou `http://localhost:3000` (prod).
 
-### Passo 6: Atualizar Dados do Dashboard
+### Passo 6: Gerar Dados de Backtest para o Dashboard
 
-Para regenerar os dados do dashboard com novos dados de mercado:
+O dashboard consome um arquivo JSON (`dashboard/client/src/data/backtest-data.json`) que é gerado a partir de um CSV de candles M1. Existem 3 formas de gerar esses dados:
+
+#### Opção A — Usando o script `export_data.py` (recomendado)
 
 ```bash
 # Na raiz do repositório, com virtualenv ativado
-# Coloque seu CSV de candles M1 como mtwin14400.csv (ou altere o nome no export_data.py)
-python3 export_data.py
+source venv/bin/activate
 
-# O JSON será salvo em dashboard/client/src/data/backtest-data.json
-# Depois faça rebuild do dashboard:
+# 1. Coloque seu CSV de candles M1 na raiz como mtwin14400.csv
+#    Formato obrigatório do CSV:
+#    time,open,high,low,close,tick_volume,spread,real_volume
+#    2025-03-10 18:01:00,128186.0,128192.0,128171.0,128181.0,505.0,1,1218.0
+#
+#    Campos mínimos: time, open, high, low, close, volume (ou tick_volume)
+
+# 2. Execute o exportador
+python3 export_data.py
+# Saída: dashboard/client/src/data/backtest-data.json
+
+# 3. Rebuild do dashboard
 cd dashboard && pnpm build
 ```
+
+O `export_data.py` executa a engine V3 candle a candle, coleta todos os Order Blocks, trades, ordens pendentes, swings, métricas de acúmulo de memória e estatísticas de assertividade 3:1, e salva tudo em um único JSON.
+
+#### Opção B — Exportar dados do MetaTrader 5
+
+Se você tem o MetaTrader 5 instalado, pode exportar candles M1 diretamente:
+
+```python
+# export_mt5.py — Exportar candles M1 do MetaTrader 5 para CSV
+import MetaTrader5 as mt5
+import pandas as pd
+from datetime import datetime, timedelta
+
+mt5.initialize()
+
+symbol = "WIN$N"  # Ajuste para seu símbolo
+timeframe = mt5.TIMEFRAME_M1
+date_from = datetime(2025, 3, 10)  # Data inicial
+date_to = datetime(2025, 3, 11)    # Data final
+
+rates = mt5.copy_rates_range(symbol, timeframe, date_from, date_to)
+df = pd.DataFrame(rates)
+df['time'] = pd.to_datetime(df['time'], unit='s')
+df.to_csv('mtwin14400.csv', index=False)
+print(f'Exportados {len(df)} candles M1 de {symbol}')
+
+mt5.shutdown()
+```
+
+Depois de gerar o CSV, execute `python3 export_data.py` conforme a Opção A.
+
+#### Opção C — Gerar dados programaticamente (backtest customizado)
+
+Para cenários mais complexos, você pode gerar o JSON diretamente via Python:
+
+```python
+import json, math
+from smc_engine_v3 import SMCEngineV3
+import pandas as pd
+
+# Carregar seus dados (qualquer fonte: CSV, API, banco de dados)
+df = pd.read_csv('seus_dados.csv')
+
+# Configurar a engine
+engine = SMCEngineV3(
+    symbol='WINM24',
+    swing_length=5,           # Tamanho do swing para detecção
+    risk_reward_ratio=3.0,    # Ratio risco:retorno (1:3)
+    min_volume_ratio=0.0,     # Filtro de volume mínimo (0 = desativado)
+    min_ob_size_atr=0.0,      # Tamanho mínimo do OB em ATR (0 = desativado)
+    use_not_mitigated_filter=True,  # Filtrar apenas OBs não mitigados
+    max_pending_candles=150,  # Expiração de ordens pendentes
+    entry_delay_candles=1,    # Delay de entrada após confirmação
+)
+
+# Processar candles
+for i in range(len(df)):
+    row = df.iloc[i]
+    engine.add_candle({
+        'open': float(row['open']),
+        'high': float(row['high']),
+        'low': float(row['low']),
+        'close': float(row['close']),
+        'volume': float(row.get('volume', row.get('tick_volume', 1))),
+    })
+
+# Obter estatísticas
+stats = engine.get_stats()
+print(f"Trades: {stats['total_trades']}, Win Rate: {stats['win_rate']}%")
+print(f"P&L: {stats['total_profit_points']} pts, Profit Factor: {stats['profit_factor']}")
+print(f"OBs ativos: {sum(1 for ob in engine.active_obs if not ob.mitigated)}")
+print(f"OBs mitigados (lixo): {sum(1 for ob in engine.active_obs if ob.mitigated)}")
+```
+
+#### Estrutura do JSON gerado (`backtest-data.json`)
+
+O JSON contém as seguintes seções:
+
+| Chave | Descrição |
+|---|---|
+| `candles` | Array de candles OHLCV com timestamp |
+| `order_blocks` | Array de OBs detectados (id, tipo, top, bottom, midline, status) |
+| `trades` | Array de trades fechados (entry, exit, pnl, direction, resultado) |
+| `pending_orders` | Array de ordens pendentes ativas |
+| `swing_highs` / `swing_lows` | Arrays de pivôs detectados |
+| `ob_accumulation` | Histórico candle a candle do acúmulo de OBs na memória |
+| `validation` | Resultado dos 10 checks de validação por trade |
+| `stats` | Métricas consolidadas (win_rate, profit_factor, expectancy, etc.) |
+| `engine_config` | Parâmetros usados na engine |
+
+#### Parâmetros da Engine V3
+
+| Parâmetro | Padrão | Descrição |
+|---|---|---|
+| `swing_length` | 5 | Candles para confirmar um swing high/low |
+| `risk_reward_ratio` | 3.0 | Ratio risco:retorno (1:3 = TP é 3x o SL) |
+| `min_volume_ratio` | 0.0 | Volume mínimo relativo à média (0 = desativado) |
+| `min_ob_size_atr` | 0.0 | Tamanho mínimo do OB em ATR (0 = desativado) |
+| `use_not_mitigated_filter` | True | Só opera OBs não mitigados |
+| `max_pending_candles` | 150 | Candles até expirar ordem pendente |
+| `entry_delay_candles` | 1 | Candles de delay após confirmação do OB |
 
 ### Passo 7: Verificar Tudo
 

@@ -158,8 +158,12 @@ def clean_nans(obj):
 data = clean_nans(data)
 data['candles'] = [c for c in data['candles'] if c.get('open') is not None]
 
-with open('/home/ubuntu/smc-dashboard/client/src/data/backtest-data.json', 'w') as f:
+import os
+output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dashboard', 'client', 'src', 'data', 'backtest-data.json')
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+with open(output_path, 'w') as f:
     json.dump(data, f, indent=2, default=str)
+print(f'Salvo em: {output_path}')
 
 print('OK')
 print(f'Candles: {len(candles)}, OBs: {len(obs)}, Trades: {len(trades)}, Pending: {len(pending)}')
