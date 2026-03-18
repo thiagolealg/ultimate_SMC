@@ -1,22 +1,34 @@
-# SMC Realtime API - Docker Compose
-# ==================================
-
+# =============================================================================
+# Ultimate SMC - Docker Compose (Full Stack)
+# =============================================================================
+# Orquestra todos os serviços: Engine Realtime API + Dashboard
+#
+# Uso:
+#   docker compose up -d          # Sobe tudo
+#   docker compose up dashboard   # Sobe só o dashboard
+#   docker compose up smc-api     # Sobe só a API
+#   docker compose logs -f        # Ver logs
+#   docker compose down           # Para tudo
+# =============================================================================
 version: '3.8'
 
 services:
+  # ===========================================================================
+  # SMC Realtime API (FastAPI + Engine V3)
+  # ===========================================================================
   smc-api:
     build:
-      context: .
+      context: ./smc_realtime
       dockerfile: Dockerfile
     container_name: smc-realtime-api
     ports:
       - "8000:8000"
     environment:
-      # Configurações do servidor
+      # Servidor
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8000
-      
-      # Configurações do engine SMC
+
+      # Engine SMC
       - SWING_LENGTH=5
       - RISK_REWARD_RATIO=3.0
       - MIN_VOLUME_RATIO=1.5
@@ -24,31 +36,66 @@ services:
       - MAX_PENDING_ORDERS=10
       - MAX_CANDLES_HISTORY=5000
       - USE_NOT_MITIGATED_FILTER=true
-      
+
+      # Garbage Collection (novo)
+      - GC_INTERVAL=10
+      - MAX_SWING_HISTORY=200
+      - ORDER_EXPIRY_CANDLES=100
+
       # Símbolos suportados
       - SUPPORTED_SYMBOLS=WINM24,WDOM24,PETR4,VALE3
-      
-      # Alertas (configure suas credenciais)
+
+      # Alertas (configure no .env)
       - ALERT_TELEGRAM_BOT_TOKEN=${ALERT_TELEGRAM_BOT_TOKEN:-}
       - ALERT_TELEGRAM_CHAT_ID=${ALERT_TELEGRAM_CHAT_ID:-}
       - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL:-}
-      
+
       # Logging
       - LOG_LEVEL=INFO
-    
+
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-    
+
     restart: unless-stopped
-    
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-    
+
+    networks:
+      - smc-network
+
+  # ===========================================================================
+  # SMC Dashboard (React + Vite)
+  # ===========================================================================
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: smc-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+
+    depends_on:
+      smc-api:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
     networks:
       - smc-network
 

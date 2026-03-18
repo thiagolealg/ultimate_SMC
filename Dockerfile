@@ -5,7 +5,7 @@ FROM python:3.11-slim
 
 # Metadados
 LABEL maintainer="SMC Trading"
-LABEL version="1.0.0"
+LABEL version="2.0.0"
 LABEL description="Smart Money Concepts Realtime Trading API"
 
 # Variáveis de ambiente
@@ -18,7 +18,7 @@ WORKDIR /app
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
+    gcc curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements e instalar dependências Python
@@ -28,6 +28,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código da aplicação
 COPY main.py .
 COPY smc_engine.py .
+COPY smc_engine_v3.py .
 COPY settings.py .
 COPY alerts.py .
 
