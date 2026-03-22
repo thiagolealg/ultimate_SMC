@@ -1,0 +1,700 @@
+[
+  {
+    "candle_idx": 0,
+    "ohlc": {
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 101,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 1,
+    "ohlc": {
+      "open": 101,
+      "high": 102,
+      "low": 100,
+      "close": 102,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 2,
+    "ohlc": {
+      "open": 102,
+      "high": 103,
+      "low": 101,
+      "close": 103,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 3,
+    "ohlc": {
+      "open": 103,
+      "high": 104,
+      "low": 102,
+      "close": 104,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 4,
+    "ohlc": {
+      "open": 104,
+      "high": 100,
+      "low": 99,
+      "close": 100,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 5,
+    "ohlc": {
+      "open": 100,
+      "high": 99,
+      "low": 98,
+      "close": 98,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 6,
+    "ohlc": {
+      "open": 98,
+      "high": 97,
+      "low": 96,
+      "close": 96,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 7,
+    "ohlc": {
+      "open": 96,
+      "high": 95,
+      "low": 94,
+      "close": 94,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 8,
+    "ohlc": {
+      "open": 94,
+      "high": 93,
+      "low": 92,
+      "close": 92,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 9,
+    "ohlc": {
+      "open": 92,
+      "high": 91,
+      "low": 80,
+      "close": 80,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 10,
+    "ohlc": {
+      "open": 80,
+      "high": 81,
+      "low": 79,
+      "close": 81,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 11,
+    "ohlc": {
+      "open": 81,
+      "high": 82,
+      "low": 80,
+      "close": 82,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 12,
+    "ohlc": {
+      "open": 82,
+      "high": 83,
+      "low": 81,
+      "close": 83,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 13,
+    "ohlc": {
+      "open": 83,
+      "high": 84,
+      "low": 82,
+      "close": 84,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 14,
+    "ohlc": {
+      "open": 84,
+      "high": 95,
+      "low": 83,
+      "close": 95,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 0,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 15,
+    "ohlc": {
+      "open": 95,
+      "high": 94,
+      "low": 93,
+      "close": 93,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 1,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 16,
+    "ohlc": {
+      "open": 93,
+      "high": 92,
+      "low": 91,
+      "close": 91,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 1,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 17,
+    "ohlc": {
+      "open": 91,
+      "high": 90,
+      "low": 89,
+      "close": 89,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 1,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 18,
+    "ohlc": {
+      "open": 89,
+      "high": 88,
+      "low": 87,
+      "close": 87,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 0,
+    "swing_lows": 1,
+    "active_obs": 0,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 19,
+    "ohlc": {
+      "open": 87,
+      "high": 86,
+      "low": 75,
+      "close": 75,
+      "volume": 1000
+    },
+    "new_obs": 1,
+    "new_signals": 1,
+    "swing_highs": 1,
+    "swing_lows": 1,
+    "active_obs": 1,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [
+        {
+          "order_id": "SMC_1",
+          "direction": "BEARISH",
+          "entry_price": 80.5,
+          "stop_loss": 81.1,
+          "take_profit": 78.70000000000002,
+          "ob_top": 81.0,
+          "ob_bottom": 80.0,
+          "confidence": 40.0,
+          "patterns": [
+            "OB",
+            "CHoCH",
+            "FVG"
+          ]
+        }
+      ],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [
+        {
+          "ob_id": 1,
+          "direction": "SignalDirection.BEARISH",
+          "top": 81.0,
+          "bottom": 80.0,
+          "midline": 80.5,
+          "ob_candle_index": 10,
+          "confirmation_index": 19,
+          "volume": 1000.0,
+          "volume_ratio": 1.0,
+          "ob_size": 1.0,
+          "ob_size_atr": 0.2857142857142857,
+          "mitigated": true,
+          "mitigated_index": 24,
+          "used": true
+        }
+      ],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 20,
+    "ohlc": {
+      "open": 75,
+      "high": 76,
+      "low": 74,
+      "close": 76,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 1,
+    "swing_lows": 1,
+    "active_obs": 1,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 21,
+    "ohlc": {
+      "open": 76,
+      "high": 77,
+      "low": 75,
+      "close": 77,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 1,
+    "swing_lows": 1,
+    "active_obs": 1,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 22,
+    "ohlc": {
+      "open": 77,
+      "high": 78,
+      "low": 76,
+      "close": 78,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 1,
+    "swing_lows": 1,
+    "active_obs": 1,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 23,
+    "ohlc": {
+      "open": 78,
+      "high": 79,
+      "low": 77,
+      "close": 79,
+      "volume": 1000
+    },
+    "new_obs": 0,
+    "new_signals": 0,
+    "swing_highs": 1,
+    "swing_lows": 1,
+    "active_obs": 1,
+    "mitigated_obs": 0,
+    "events": {
+      "new_signals": [],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [],
+      "new_obs": [],
+      "new_patterns": []
+    }
+  },
+  {
+    "candle_idx": 24,
+    "ohlc": {
+      "open": 79,
+      "high": 96,
+      "low": 78,
+      "close": 96,
+      "volume": 1000
+    },
+    "new_obs": 1,
+    "new_signals": 1,
+    "swing_highs": 1,
+    "swing_lows": 1,
+    "active_obs": 1,
+    "mitigated_obs": 1,
+    "events": {
+      "new_signals": [
+        {
+          "order_id": "SMC_2",
+          "direction": "BULLISH",
+          "entry_price": 86.0,
+          "stop_loss": 78.8,
+          "take_profit": 107.60000000000001,
+          "ob_top": 92.0,
+          "ob_bottom": 80.0,
+          "confidence": 70.0,
+          "patterns": [
+            "OB",
+            "CHoCH",
+            "FVG",
+            "SWEEP"
+          ]
+        }
+      ],
+      "filled_orders": [],
+      "closed_trades": [],
+      "expired_orders": [],
+      "cancelled_orders": [
+        {
+          "order_id": "SMC_1",
+          "reason": "ob_mitigated_on_fill",
+          "candle": 24
+        }
+      ],
+      "new_obs": [
+        {
+          "ob_id": 2,
+          "direction": "SignalDirection.BULLISH",
+          "top": 92.0,
+          "bottom": 80.0,
+          "midline": 86.0,
+          "ob_candle_index": 9,
+          "confirmation_index": 24,
+          "volume": 1000.0,
+          "volume_ratio": 1.0,
+          "ob_size": 12.0,
+          "ob_size_atr": 2.847457627118644,
+          "mitigated": false,
+          "mitigated_index": -1,
+          "used": true
+        }
+      ],
+      "new_patterns": []
+    }
+  }
+]
