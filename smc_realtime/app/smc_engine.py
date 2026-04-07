@@ -666,11 +666,48 @@ class SMCEngine:
                 return True
         return False
     
+    def _keep_closest_pending_order(self, candle: Dict) -> None:
+        """
+        Mantém apenas a ordem pendente mais próxima do preço atual.
+        Cancela as demais ordens pendentes.
+        """
+        if len(self.pending_orders) <= 1:
+            return
+        
+        current_price = candle['close']
+        closest_order = None
+        closest_distance = float('inf')
+        
+        for order in self.pending_orders:
+            if order.status == OrderStatus.PENDING:
+                distance = abs(order.entry_price - current_price)
+                if distance < closest_distance:
+                    closest_distance = distance
+                    closest_order = order
+        
+        # Manter apenas a ordem mais próxima
+        if closest_order:
+            cancelled_count = 0
+            remaining = []
+            for order in self.pending_orders:
+                if order.status == OrderStatus.PENDING and order != closest_order:
+                    order.status = OrderStatus.CANCELLED
+                    cancelled_count += 1
+                else:
+                    remaining.append(order)
+            
+            self.pending_orders = remaining
+            if cancelled_count > 0:
+                logger.info(f"{cancelled_count} ordem(ns) cancelada(s). Mantendo apenas a mais próxima: {closest_order.id} @ {closest_order.entry_price:.2f}")
+    
     def _expire_pending_orders(self, candle: Dict):
         """
         [FIX-6] Expira ordens pendentes que ultrapassaram max_pending_candles.
         Antes não existia expiração, ordens ficavam pendentes para sempre.
         """
+        # Manter apenas a ordem mais próxima do preço
+        self._keep_closest_pending_order(candle)
+        
         idx = candle['index']
         remaining = []
         for order in self.pending_orders:

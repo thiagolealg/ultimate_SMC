@@ -1297,11 +1297,36 @@ class SMCEngineV3:
 
         return new_signals
     
+    def _keep_closest_pending_order(self, idx: int) -> None:
+        """
+        Mantém apenas a ordem pendente mais próxima do preço atual.
+        Cancela as demais ordens pendentes.
+        """
+        if len(self.pending_orders) <= 1:
+            return
+        
+        current_price = self.closes[idx]
+        closest_order = None
+        closest_distance = float('inf')
+        
+        for order in self.pending_orders:
+            distance = abs(order.entry_price - current_price)
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_order = order
+        
+        # Manter apenas a ordem mais próxima
+        if closest_order:
+            self.pending_orders = [closest_order]
+    
     def _process_pending_orders(self, idx: int) -> Tuple[List[dict], List[dict], List[dict]]:
         """
         Processa ordens pendentes: verificar fill, expiração, ou cancelamento.
         Sempre usa dados M1 para fill (precisao maxima na entrada).
         """
+        # Manter apenas a ordem mais próxima do preço
+        self._keep_closest_pending_order(idx)
+        
         filled = []
         expired = []
         cancelled = []
@@ -1525,8 +1550,8 @@ class SMCEngineV3:
             'profit_factor': total_win_r / total_loss_r if total_loss_r > 0 else float('inf'),
             'total_profit_r': sum(t.profit_loss_r for t in trades),
             'total_profit_points': sum(t.profit_loss for t in trades),
-            'total_win_points': total_win_pts,
-            'total_loss_points': total_loss_pts,
+            'total_profit_points': total_win_pts,
+            'total_profit_points': total_loss_pts,
             'avg_profit_r': sum(t.profit_loss_r for t in trades) / len(trades),
             'candles_processed': self.candle_count,
             'order_blocks_detected': self._ob_counter,
@@ -1590,10 +1615,10 @@ if __name__ == "__main__":
     import pandas as pd
     import sys
     sys.path.insert(0, '/home/ubuntu/smc_enhanced')
-    from smc_touch_validated import SMCStrategyTouchValidated
+    #from smc_touch_validated import SMCStrategyTouchValidated
     
     # Carregar dados
-    df = pd.read_csv('/home/ubuntu/upload/mtwin14400.csv')
+    df = pd.read_csv('./mtwin14400.csv')
     df.columns = [c.lower() for c in df.columns]
     if 'volume' not in df.columns:
         df['volume'] = df.get('tick_volume', df.get('real_volume', 1.0))
@@ -1605,24 +1630,6 @@ if __name__ == "__main__":
     
     # ========== BATCH ==========
     print("\n--- BATCH (smc_touch_validated.py) ---")
-    strategy = SMCStrategyTouchValidated(
-        df, swing_length=5, risk_reward_ratio=3.0,
-        entry_delay_candles=1, use_not_mitigated_filter=True,
-        min_volume_ratio=1.5, min_ob_size_atr=0.5,
-    )
-    signals = strategy.generate_signals()
-    results, stats = strategy.backtest(signals)
-    
-    print(f"  Trades: {stats['total_trades']}")
-    print(f"  Win Rate: {stats['win_rate']:.1f}%")
-    print(f"  Lucro (R): {stats['total_profit_loss_r']:.1f}R")
-    
-    batch_profit_pts = sum(r.profit_loss for r in results)
-    batch_win_pts = sum(r.profit_loss for r in results if r.hit_tp)
-    batch_loss_pts = sum(r.profit_loss for r in results if r.hit_sl)
-    print(f"  Lucro (pts): {batch_profit_pts:+.2f}")
-    print(f"  Win (pts): {batch_win_pts:+.2f}")
-    print(f"  Loss (pts): {batch_loss_pts:+.2f}")
     
     # ========== ENGINE V3 ==========
     print("\n--- ENGINE V3 (candle a candle) ---")
@@ -1654,43 +1661,10 @@ if __name__ == "__main__":
     print(f"  Win Rate: {stats_v3['win_rate']:.1f}%")
     print(f"  Lucro (R): {stats_v3['total_profit_r']:.1f}R")
     print(f"  Lucro (pts): {stats_v3['total_profit_points']:+.2f}")
-    print(f"  Win (pts): {stats_v3['total_win_points']:+.2f}")
-    print(f"  Loss (pts): {-stats_v3['total_loss_points']:+.2f}")
+    print(f"  Win (pts): {stats_v3['total_profit_points']:+.2f}")
+    print(f"  Loss (pts): {-stats_v3['total_profit_points']:+.2f}")
     print(f"  OBs detectados: {stats_v3['order_blocks_detected']}")
     
-    # ========== COMPARAÇÃO ==========
-    print("\n" + "=" * 80)
-    print("COMPARAÇÃO BATCH vs ENGINE V3")
-    print("=" * 80)
-    print(f"  {'Métrica':<25} {'BATCH':>15} {'ENGINE V3':>15} {'MATCH':>10}")
-    print(f"  {'-'*65}")
-    
-    match_trades = stats['total_trades'] == stats_v3['total_trades']
-    match_wr = abs(stats['win_rate'] - stats_v3['win_rate']) < 0.5
-    match_profit = abs(stats['total_profit_loss_r'] - stats_v3['total_profit_r']) < 5
-    
-    print(f"  {'Trades':<25} {stats['total_trades']:>15} {stats_v3['total_trades']:>15} {'✅' if match_trades else '❌':>10}")
-    print(f"  {'Win Rate':<25} {stats['win_rate']:>14.1f}% {stats_v3['win_rate']:>14.1f}% {'✅' if match_wr else '❌':>10}")
-    print(f"  {'Lucro (R)':<25} {stats['total_profit_loss_r']:>14.1f}R {stats_v3['total_profit_r']:>14.1f}R {'✅' if match_profit else '❌':>10}")
-    print(f"  {'Lucro (pts)':<25} {batch_profit_pts:>14.2f} {stats_v3['total_profit_points']:>14.2f}")
-    
-    # Comparar primeiros 10 trades
-    print("\n" + "=" * 80)
-    print("PRIMEIROS 10 TRADES")
-    print("=" * 80)
-    
-    print("\n  BATCH:")
-    for i, r in enumerate(results[:10]):
-        s = r.signal
-        print(f"    #{i+1}: {s.direction.name:8s} OB={s.signal_candle_index:>6d} "
-              f"Fill={s.index:>6d} Entry={s.entry_price:>10.2f} "
-              f"{'TP' if r.hit_tp else 'SL'} P/L={r.profit_loss:>+8.2f}")
-    
-    print("\n  ENGINE V3:")
-    for i, t in enumerate(trades_v3[:10]):
-        print(f"    #{i+1}: {t['direction']:8s} OB={t['created_at']:>6d} "
-              f"Fill={t['filled_at']:>6d} Entry={t['entry_price']:>10.2f} "
-              f"{'TP' if 'tp' in t['status'] else 'SL'} P/L={t['profit_loss']:>+8.2f}")
     
     # ========== VALIDAÇÃO ==========
     print("\n" + "=" * 80)

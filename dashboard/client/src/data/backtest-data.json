@@ -1962,35 +1962,7 @@
       "confidence": 43.0
     }
   ],
-  "pending_orders": [
-    {
-      "id": "SMC_4",
-      "direction": "bearish",
-      "entry_price": 127960.0,
-      "sl": 127999.6,
-      "tp": 127841.19999999998,
-      "ob_id": 4,
-      "created_at": 104
-    },
-    {
-      "id": "SMC_5",
-      "direction": "bearish",
-      "entry_price": 127715.5,
-      "sl": 127718.5,
-      "tp": 127706.5,
-      "ob_id": 5,
-      "created_at": 129
-    },
-    {
-      "id": "SMC_7",
-      "direction": "bearish",
-      "entry_price": 127481.5,
-      "sl": 127484.5,
-      "tp": 127472.5,
-      "ob_id": 7,
-      "created_at": 154
-    }
-  ],
+  "pending_orders": [],
   "ob_accumulation": [
     {
       "candle": 0,
@@ -3317,56 +3289,12 @@
       "total": 3,
       "active": 3,
       "mitigated": 0
-    }
-  ],
-  "trade_validations": [
+    },
     {
-      "order_id": "SMC_8",
-      "direction": "bearish",
-      "ob_id": 8,
-      "ob_top": 127025.0,
-      "ob_bottom": 126974.0,
-      "ob_midline": 126999.5,
-      "ob_candle_idx": 171,
-      "ob_confirmation_idx": 179,
-      "entry_price": 126999.5,
-      "stop_loss": 127030.1,
-      "take_profit": 126907.69999999998,
-      "exit_price": 126907.69999999998,
-      "created_at": 179,
-      "filled_at": 180,
-      "closed_at": 181,
-      "status": "closed_tp",
-      "pnl": 91.80000000001746,
-      "pnl_r": 3.0,
-      "risk_points": 30.6,
-      "reward_points": 91.8,
-      "actual_rr": 3.0,
-      "checks": {
-        "order_after_confirmation": true,
-        "entry_delay_respected": true,
-        "price_touched_entry": true,
-        "ob_not_broken_on_fill": true,
-        "tp_sl_after_fill": true,
-        "exit_price_valid": true,
-        "rr_correct": true,
-        "sl_priority": true,
-        "no_lookahead": true,
-        "no_premature_exit": true
-      },
-      "all_passed": true,
-      "fill_candle": {
-        "open": 126923.0,
-        "high": 127010.0,
-        "low": 126913.0,
-        "close": 126990.0
-      },
-      "close_candle": {
-        "open": 126990.0,
-        "high": 126995.0,
-        "low": 126888.0,
-        "close": 126918.0
-      }
+      "candle": 221,
+      "total": 3,
+      "active": 3,
+      "mitigated": 0
     }
   ],
   "stats": {
@@ -3375,27 +3303,23 @@
     "losses": 0,
     "win_rate": 100.0,
     "profit_factor": 999.0,
-    "total_pnl": 91.8,
+    "total_pnl": 0,
     "total_pnl_r": 3.0,
     "avg_pnl_r": 3.0,
-    "total_win_points": 91.8,
+    "total_win_points": 0,
     "total_loss_points": 0,
-    "avg_win": 91.8,
+    "avg_win": 0.0,
     "avg_loss": 0.0,
     "expectancy_r": 3.0,
     "risk_reward_ratio": 3.0,
     "order_blocks_detected": 10,
     "active_obs": 3,
     "mitigated_obs": 0,
-    "pending_orders_count": 3,
+    "pending_orders_count": 0,
     "ob_counter": 10,
     "total_obs_in_memory": 3,
     "memory_waste_pct": 0.0,
-    "candles_processed": 221,
-    "validation_passed": 1,
-    "validation_total": 1,
-    "validation_checks_passed": 10,
-    "validation_checks_total": 10
+    "candles_processed": 222
   },
   "engine_config": {
     "symbol": "WINM24",
