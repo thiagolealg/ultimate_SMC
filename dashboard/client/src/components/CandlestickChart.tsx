@@ -173,23 +173,38 @@ export function CandlestickChart({
     });
 
     trades.forEach((t) => {
-      if (t.filled_at >= 0 && t.filled_at < candles.length) {
+      const sameCandle = t.filled_at === t.closed_at;
+
+      if (sameCandle && t.filled_at >= 0 && t.filled_at < candles.length) {
+        // Entry e exit no mesmo candle: mostrar marker combinado para evitar sobreposição
+        const isWin = t.pnl > 0;
+        const pnlText = `${isWin ? "+" : ""}${t.pnl.toFixed(1)}`;
         markers.push({
           time: (t.filled_at + 1) as any,
           position: t.direction === "bullish" ? "belowBar" : "aboveBar",
-          color: "#ffd700",
+          color: isWin ? "#00e676" : "#ff3b3b",
           shape: "circle",
-          text: `ENTRY`,
+          text: `E→${isWin ? "TP" : "SL"} ${pnlText}`,
         });
-      }
-      if (t.closed_at >= 0 && t.closed_at < candles.length) {
-        markers.push({
-          time: (t.closed_at + 1) as any,
-          position: t.direction === "bullish" ? "aboveBar" : "belowBar",
-          color: t.pnl > 0 ? "#00e676" : "#ff3b3b",
-          shape: "square",
-          text: t.pnl > 0 ? "TP" : "SL",
-        });
+      } else {
+        if (t.filled_at >= 0 && t.filled_at < candles.length) {
+          markers.push({
+            time: (t.filled_at + 1) as any,
+            position: t.direction === "bullish" ? "belowBar" : "aboveBar",
+            color: "#ffd700",
+            shape: "circle",
+            text: `ENTRY`,
+          });
+        }
+        if (t.closed_at >= 0 && t.closed_at < candles.length) {
+          markers.push({
+            time: (t.closed_at + 1) as any,
+            position: t.direction === "bullish" ? "aboveBar" : "belowBar",
+            color: t.pnl > 0 ? "#00e676" : "#ff3b3b",
+            shape: "square",
+            text: t.pnl > 0 ? "TP" : "SL",
+          });
+        }
       }
     });
 
