@@ -1,13 +1,16 @@
 /**
- * Replay — Market Replay com dados BTC online
- * Permite assistir o mercado como se fosse em tempo real com controle de velocidade
+ * Replay — Market Replay com dados BTC online + SMC Trades
+ * Mostra trades e Order Blocks aparecendo conforme os candles avançam
  */
 import { useMemo } from "react";
 import { CandlestickChart } from "@/components/CandlestickChart";
 import { ReplayControls } from "@/components/ReplayControls";
 import { useBTCData } from "@/hooks/useBTCData";
 import { useReplay } from "@/hooks/useReplay";
-import { Activity, Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { Activity, Wifi, WifiOff, RefreshCw, TrendingUp, TrendingDown, Target } from "lucide-react";
+import backtestDataRaw from "@/data/backtest-data.json";
+
+const backtestData = backtestDataRaw as any;
 
 export default function Replay() {
   const { candles, loading, error, refetch } = useBTCData({
@@ -34,6 +37,40 @@ export default function Replay() {
     [candles, currentIndex]
   );
 
+  // Filter trades that have been filled within visible range
+  const visibleTrades = useMemo(() => {
+    return (backtestData.trades || []).filter(
+      (t: any) => t.filled_at < currentIndex && t.closed_at < currentIndex
+    );
+  }, [currentIndex]);
+
+  // Filter order blocks that have been confirmed within visible range
+  const visibleOrderBlocks = useMemo(() => {
+    return (backtestData.order_blocks || []).filter(
+      (ob: any) => ob.confirmation_index < currentIndex
+    );
+  }, [currentIndex]);
+
+  // Filter swing points within visible range
+  const visibleSwingHighs = useMemo(() => {
+    return (backtestData.swing_highs || []).filter(
+      (sh: any) => sh.candle_idx < currentIndex
+    );
+  }, [currentIndex]);
+
+  const visibleSwingLows = useMemo(() => {
+    return (backtestData.swing_lows || []).filter(
+      (sl: any) => sl.candle_idx < currentIndex
+    );
+  }, [currentIndex]);
+
+  // Pending orders visible
+  const visiblePendingOrders = useMemo(() => {
+    return (backtestData.pending_orders || []).filter(
+      (po: any) => po.created_at < currentIndex
+    );
+  }, [currentIndex]);
+
   // Calculate live stats from visible candles
   const stats = useMemo(() => {
     if (visibleCandles.length === 0) return null;
@@ -54,6 +91,16 @@ export default function Replay() {
       time: last.time,
     };
   }, [visibleCandles]);
+
+  // Trade stats for visible trades
+  const tradeStats = useMemo(() => {
+    if (visibleTrades.length === 0) return null;
+    const wins = visibleTrades.filter((t: any) => t.pnl > 0).length;
+    const losses = visibleTrades.filter((t: any) => t.pnl <= 0).length;
+    const totalR = visibleTrades.reduce((sum: number, t: any) => sum + t.pnl_r, 0);
+    const winRate = visibleTrades.length > 0 ? (wins / visibleTrades.length) * 100 : 0;
+    return { wins, losses, totalR, winRate, total: visibleTrades.length };
+  }, [visibleTrades]);
 
   if (loading) {
     return (
@@ -123,8 +170,6 @@ export default function Replay() {
                   {stats.change >= 0 ? "+" : ""}
                   {stats.change.toFixed(2)} ({stats.changePct.toFixed(2)}%)
                 </span>
-                <span>H: {stats.high.toFixed(2)}</span>
-                <span>L: {stats.low.toFixed(2)}</span>
               </>
             )}
           </div>
@@ -154,6 +199,14 @@ export default function Replay() {
               <h2 className="text-[11px] font-semibold uppercase tracking-wider">
                 BTC/USDT — Market Replay
               </h2>
+              {tradeStats && (
+                <span className="text-[10px] font-mono ml-3 px-2 py-0.5 bg-secondary/50 rounded-sm">
+                  {tradeStats.total} trades | {tradeStats.wins}W {tradeStats.losses}L |{" "}
+                  <span className={tradeStats.totalR >= 0 ? "text-[#00e676]" : "text-[#ff3b3b]"}>
+                    {tradeStats.totalR >= 0 ? "+" : ""}{tradeStats.totalR.toFixed(1)}R
+                  </span>
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
               {stats && <span>{stats.time}</span>}
@@ -169,53 +222,138 @@ export default function Replay() {
           <div className="h-[500px]">
             <CandlestickChart
               candles={visibleCandles}
-              orderBlocks={[]}
-              trades={[]}
-              pendingOrders={[]}
-              swingHighs={[]}
-              swingLows={[]}
+              orderBlocks={visibleOrderBlocks}
+              trades={visibleTrades}
+              pendingOrders={visiblePendingOrders}
+              swingHighs={visibleSwingHighs}
+              swingLows={visibleSwingLows}
             />
           </div>
         </section>
 
         {/* Stats Cards */}
-        {stats && (
-          <section className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-            <div className="bg-card border border-border/50 rounded-sm p-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase">Preço Atual</div>
-              <div className="text-lg font-bold font-mono text-foreground">
-                ${stats.price.toFixed(2)}
+        <section className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          {stats && (
+            <>
+              <div className="bg-card border border-border/50 rounded-sm p-3">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase">Preço</div>
+                <div className="text-base font-bold font-mono text-foreground">
+                  ${stats.price.toFixed(0)}
+                </div>
               </div>
+              <div className="bg-card border border-border/50 rounded-sm p-3">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase">Variação</div>
+                <div className={`text-base font-bold font-mono ${stats.change >= 0 ? "text-[#00e676]" : "text-[#ff3b3b]"}`}>
+                  {stats.changePct >= 0 ? "+" : ""}{stats.changePct.toFixed(2)}%
+                </div>
+              </div>
+              <div className="bg-card border border-border/50 rounded-sm p-3">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase">High</div>
+                <div className="text-base font-bold font-mono text-[#00e676]">
+                  ${stats.high.toFixed(0)}
+                </div>
+              </div>
+              <div className="bg-card border border-border/50 rounded-sm p-3">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase">Low</div>
+                <div className="text-base font-bold font-mono text-[#ff3b3b]">
+                  ${stats.low.toFixed(0)}
+                </div>
+              </div>
+            </>
+          )}
+          {tradeStats ? (
+            <>
+              <div className="bg-card border border-[#00e676]/30 rounded-sm p-3">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase flex items-center gap-1">
+                  <Target className="w-3 h-3" /> Win Rate
+                </div>
+                <div className="text-base font-bold font-mono text-[#00e676]">
+                  {tradeStats.winRate.toFixed(0)}%
+                </div>
+              </div>
+              <div className="bg-card border border-border/50 rounded-sm p-3">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" /> Wins
+                </div>
+                <div className="text-base font-bold font-mono text-[#00e676]">
+                  {tradeStats.wins}
+                </div>
+              </div>
+              <div className="bg-card border border-border/50 rounded-sm p-3">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase flex items-center gap-1">
+                  <TrendingDown className="w-3 h-3" /> Losses
+                </div>
+                <div className="text-base font-bold font-mono text-[#ff3b3b]">
+                  {tradeStats.losses}
+                </div>
+              </div>
+              <div className="bg-card border border-border/50 rounded-sm p-3">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase">P&L (R)</div>
+                <div className={`text-base font-bold font-mono ${tradeStats.totalR >= 0 ? "text-[#00e676]" : "text-[#ff3b3b]"}`}>
+                  {tradeStats.totalR >= 0 ? "+" : ""}{tradeStats.totalR.toFixed(1)}R
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-card border border-border/50 rounded-sm p-3 col-span-4">
+                <div className="text-[10px] font-mono text-muted-foreground text-center py-1">
+                  Avance o replay para ver os trades aparecendo...
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Trade Log */}
+        {visibleTrades.length > 0 && (
+          <section className="bg-card border border-border/50 rounded-sm overflow-hidden">
+            <div className="px-3 py-1.5 border-b border-border/30 flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5 text-[#ffd700]" />
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider">
+                Trade Log
+              </h2>
             </div>
-            <div className="bg-card border border-border/50 rounded-sm p-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase">Variação</div>
-              <div className={`text-lg font-bold font-mono ${stats.change >= 0 ? "text-[#00e676]" : "text-[#ff3b3b]"}`}>
-                {stats.changePct >= 0 ? "+" : ""}{stats.changePct.toFixed(2)}%
-              </div>
-            </div>
-            <div className="bg-card border border-border/50 rounded-sm p-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase">High</div>
-              <div className="text-lg font-bold font-mono text-[#00e676]">
-                ${stats.high.toFixed(2)}
-              </div>
-            </div>
-            <div className="bg-card border border-border/50 rounded-sm p-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase">Low</div>
-              <div className="text-lg font-bold font-mono text-[#ff3b3b]">
-                ${stats.low.toFixed(2)}
-              </div>
-            </div>
-            <div className="bg-card border border-border/50 rounded-sm p-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase">Volume</div>
-              <div className="text-lg font-bold font-mono text-foreground">
-                {stats.volume.toFixed(2)}
-              </div>
-            </div>
-            <div className="bg-card border border-border/50 rounded-sm p-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase">Candles</div>
-              <div className="text-lg font-bold font-mono text-foreground">
-                {currentIndex}/{candles.length}
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px] font-mono">
+                <thead>
+                  <tr className="border-b border-border/30 text-muted-foreground">
+                    <th className="px-2 py-1 text-left">#</th>
+                    <th className="px-2 py-1 text-left">Dir</th>
+                    <th className="px-2 py-1 text-right">Entry</th>
+                    <th className="px-2 py-1 text-right">Exit</th>
+                    <th className="px-2 py-1 text-right">P&L</th>
+                    <th className="px-2 py-1 text-right">R</th>
+                    <th className="px-2 py-1 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleTrades.map((t: any, i: number) => {
+                    const isWin = t.pnl > 0;
+                    return (
+                      <tr key={t.id} className="border-b border-border/10 hover:bg-secondary/20">
+                        <td className="px-2 py-1">{i + 1}</td>
+                        <td className="px-2 py-1">
+                          <span className={t.direction === "bullish" ? "text-[#00e676]" : "text-[#ff9100]"}>
+                            {t.direction === "bullish" ? "LONG" : "SHORT"}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1 text-right">{t.entry_price.toFixed(2)}</td>
+                        <td className="px-2 py-1 text-right">{t.exit_price.toFixed(2)}</td>
+                        <td className={`px-2 py-1 text-right font-semibold ${isWin ? "text-[#00e676]" : "text-[#ff3b3b]"}`}>
+                          {isWin ? "+" : ""}{t.pnl.toFixed(2)}
+                        </td>
+                        <td className={`px-2 py-1 text-right font-semibold ${isWin ? "text-[#00e676]" : "text-[#ff3b3b]"}`}>
+                          {t.pnl_r > 0 ? "+" : ""}{t.pnl_r.toFixed(1)}R
+                        </td>
+                        <td className="px-2 py-1 text-center">
+                          {isWin ? "✅ TP" : "❌ SL"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </section>
         )}
